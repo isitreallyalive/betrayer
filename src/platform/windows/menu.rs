@@ -4,8 +4,7 @@ use std::ptr::null_mut;
 
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, SetForegroundWindow, TrackPopupMenu, HMENU, MF_CHECKED, MF_POPUP, MF_SEPARATOR,
-    MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN
+    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, SetForegroundWindow, TrackPopupMenu, HMENU, MF_CHECKED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN
 };
 
 use crate::error::{TrayError, TrayResult};
@@ -56,12 +55,16 @@ fn add_all<T>(hmenu: HMENU, signals: &mut Vec<T>, items: Vec<MenuItem<T>>) -> Tr
             MenuItem::Separator => {
                 error_check(unsafe { AppendMenuW(hmenu, MF_SEPARATOR, 0, null_mut()) })?;
             }
-            MenuItem::Button { name, signal, checked } => {
-                let checked = checked
-                    .map(|v| v.then_some(MF_CHECKED).unwrap_or_default())
-                    .unwrap_or_default();
+            MenuItem::Button { name, signal, disabled, checked } => {
+                let mut flags = MF_STRING;
+                if let Some(true) = checked {
+                    flags |= MF_CHECKED;
+                }
+                if disabled {
+                    flags |= MF_GRAYED;
+                }
                 let wide = encode_wide(&name);
-                error_check(unsafe { AppendMenuW(hmenu, MF_STRING | checked, signals.len(), wide.as_ptr()) })?;
+                error_check(unsafe { AppendMenuW(hmenu, flags, signals.len(), wide.as_ptr()) })?;
                 signals.push(signal);
             }
             MenuItem::Menu { name, children } => {
