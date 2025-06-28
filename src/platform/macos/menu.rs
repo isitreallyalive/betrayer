@@ -11,9 +11,10 @@ pub unsafe fn build_menu_item<T>(
 ) -> Id<NSMenuItem> {
     match item {
         MenuItem::Separator => NSMenuItem::separatorItem(marker),
-        MenuItem::Button { name, checked, signal } => {
+        MenuItem::Button { name, signal, disabled, checked } => {
             let button = NSMenuItem::new(marker);
             button.setTitle(&NSString::from_str(&name));
+            button.setEnabled(!disabled);
             //let button = NSMenuItem::initWithTitle_action_keyEquivalent(
             //    NSMenuItem::new(marker),
             //    &NSString::from_str(&name),
