@@ -140,8 +140,8 @@ impl<T> Menu<T> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MenuItem<T> {
     Separator,
-    Button { name: String, signal: T, disabled: bool, checked: Option<bool> },
-    Menu { name: String, children: Vec<MenuItem<T>> }
+    Button { name: String, signal: T, disabled: bool, checked: Option<bool>, icon: Option<Icon> },
+    Menu { name: String, children: Vec<MenuItem<T>>, icon: Option<Icon> }
 }
 
 impl<T> MenuItem<T> {
@@ -151,7 +151,7 @@ impl<T> MenuItem<T> {
     }
 
     /// A new clickable entry with label that emits a [TrayEvent::Menu] when clicked
-    pub fn button<S>(name: S, signal: T, disabled: bool) -> Self
+    pub fn button<S>(name: S, signal: T, disabled: bool, icon: Option<Icon>) -> Self
     where
         S: ToString
     {
@@ -159,12 +159,13 @@ impl<T> MenuItem<T> {
             name: name.to_string(),
             signal,
             disabled,
-            checked: None
+            checked: None,
+            icon
         }
     }
 
     /// A new clickable entry with label and checkmark that emits a [TrayEvent::Menu] when clicked
-    pub fn check_button<S>(name: S, signal: T, disabled: bool, checked: bool) -> Self
+    pub fn check_button<S>(name: S, signal: T, disabled: bool, checked: bool, icon: Option<Icon>) -> Self
     where
         S: ToString
     {
@@ -172,19 +173,21 @@ impl<T> MenuItem<T> {
             name: name.to_string(),
             signal,
             disabled,
-            checked: Some(checked)
+            checked: Some(checked),
+            icon
         }
     }
 
     /// A new submenu
-    pub fn menu<S, I>(name: S, children: I) -> Self
+    pub fn menu<S, I>(name: S, children: I, icon: Option<Icon>) -> Self
     where
         S: ToString,
         I: IntoIterator<Item = MenuItem<T>>
     {
         Self::Menu {
             name: name.to_string(),
-            children: children.into_iter().collect()
+            children: children.into_iter().collect(),
+            icon
         }
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use betrayer::winit::WinitTrayIconBuilderExt;
-use betrayer::{Icon, Menu, MenuItem, TrayEvent, TrayIcon, TrayIconBuilder};
+use betrayer::{Icon, Menu, MenuItem, TrayEvent, TrayIcon, TrayIconBuilder, TrayResult};
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use winit::application::ApplicationHandler;
@@ -15,6 +15,10 @@ enum Signal {
     Quit
 }
 
+fn make_icon(c: u8) -> TrayResult<Icon> {
+    Icon::from_rgba(vec![c; 32 * 32 * 4], 32, 32)
+}
+
 fn main() -> Result<()> {
     SimpleLogger::new()
         .with_module_level("betrayer", LevelFilter::Trace)
@@ -25,9 +29,9 @@ fn main() -> Result<()> {
 
     let selected = 0;
     let tray = TrayIconBuilder::new()
-        .with_icon(Icon::from_rgba(vec![255u8; 32 * 32 * 4], 32, 32)?)
+        .with_icon(make_icon(255)?)
         .with_tooltip("Demo System Tray")
-        .with_menu(build_menu(selected))
+        .with_menu(build_menu(selected)?)
         // with `winit` feature:
         .build_event_loop(&event_loop, |e| Some(e))?;
     // without:
@@ -57,7 +61,7 @@ impl ApplicationHandler<TrayEvent<Signal>> for App {
                         self.selected = i;
                         self.tray
                             .set_tooltip(format!("Active Profile: {}", self.selected));
-                        self.tray.set_menu(build_menu(self.selected));
+                        self.tray.set_menu(build_menu(self.selected).unwrap());
                     }
                 }
                 Signal::Open => {}
@@ -68,15 +72,17 @@ impl ApplicationHandler<TrayEvent<Signal>> for App {
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, _event: WindowEvent) {}
 }
 
-fn build_menu(selected: u32) -> Menu<Signal> {
-    Menu::new([
+fn build_menu(selected: u32) -> TrayResult<Menu<Signal>> {
+    let icon = Some(make_icon(0)?);
+    Ok(Menu::new([
         MenuItem::menu(
             "Profiles",
-            (0..5).map(|i| MenuItem::check_button(format!("Profile {}", i + 1), Signal::Profile(i), false, selected == i))
+            (0..5).map(|i| MenuItem::check_button(format!("Profile {}", i + 1), Signal::Profile(i), false, selected == i, icon.clone())),
+            icon.clone()
         ),
         MenuItem::separator(),
-        MenuItem::button("Disabled", Signal::Quit, true),
-        MenuItem::button("Open", Signal::Open, false),
-        MenuItem::button("Quit", Signal::Quit, false)
-    ])
+        MenuItem::button("Disabled", Signal::Quit, true, icon.clone()),
+        MenuItem::button("Open", Signal::Open, false, icon.clone()),
+        MenuItem::button("Quit", Signal::Quit, false, None)
+    ]))
 }

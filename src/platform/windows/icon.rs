@@ -2,9 +2,10 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use windows_sys::Win32::UI::WindowsAndMessaging::{CreateIcon, DestroyIcon, LoadImageW, HICON, IMAGE_ICON, LR_DEFAULTSIZE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{CreateIcon, DestroyIcon, LoadImageW, DrawIconEx, HICON, IMAGE_ICON, LR_DEFAULTSIZE, DI_NORMAL};
+use windows_sys::Win32::Graphics::Gdi::{CreateCompatibleDC, CreateCompatibleBitmap, SelectObject, DeleteObject, GetDC, ReleaseDC, HBITMAP};
 
-use crate::error::TrayResult;
+use crate::error::{TrayResult, TrayError};
 use crate::platform::windows::{error_check, get_instance_handle};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -61,6 +62,51 @@ impl NativeIcon {
 
     pub fn handle(&self) -> HICON {
         self.handle.0
+    }
+
+    pub fn to_bitmap(&self) -> TrayResult<HBITMAP> {
+        unsafe {
+            let desktop_dc = GetDC(null_mut());
+            if desktop_dc == null_mut() {
+                return Err(TrayError::custom("Failed to get desktop DC"));
+            }
+
+            let mem_dc = CreateCompatibleDC(desktop_dc);
+            if mem_dc == null_mut() {
+                ReleaseDC(null_mut(), desktop_dc);
+                return Err(TrayError::custom("Failed to create compatible DC"));
+            }
+
+            let bitmap = CreateCompatibleBitmap(desktop_dc, 16, 16);
+            if bitmap == null_mut() {
+                DeleteObject(mem_dc as _);
+                ReleaseDC(null_mut(), desktop_dc);
+                return Err(TrayError::custom("Failed to create compatible bitmap"));
+            }
+
+            let old_bitmap = SelectObject(mem_dc, bitmap as _);
+            
+            let draw_result = DrawIconEx(
+                mem_dc,
+                0, 0,
+                self.handle(),
+                16, 16,
+                0,
+                null_mut(),
+                DI_NORMAL
+            );
+
+            SelectObject(mem_dc, old_bitmap);
+            DeleteObject(mem_dc as _);
+            ReleaseDC(null_mut(), desktop_dc);
+
+            if draw_result == 0 {
+                DeleteObject(bitmap as _);
+                return Err(TrayError::custom("Failed to draw icon"));
+            }
+
+            Ok(bitmap)
+        }
     }
 }
 
